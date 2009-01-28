@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../../tokstream/tokstream.h"
+#include <tokstream.h>
 
 /* macro for string comparison */
 #define is_token(tok, cmp) (strcmp(tok, cmp) == 0)

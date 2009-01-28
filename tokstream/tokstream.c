@@ -134,7 +134,7 @@ struct ts_state
 };
 
 /**
- * \struct tokstream
+ * \struct tokstream tokstream.h
  *
  * \brief Token stream data structure
  *
@@ -145,6 +145,22 @@ struct ts_state
  *
  * The structure has no publicly accessible members.
  */
+struct tokstream
+{
+    FILE* fp;
+
+    char* file;
+
+    char* buf;
+    int buf_size;
+    int buf_len;
+    int buf_rev;
+
+    struct ts_state* state;
+    struct ts_state* stack;
+    int stack_size;
+};
+
 
 /****
  * charmap operations
