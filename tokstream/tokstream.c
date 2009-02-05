@@ -1301,8 +1301,13 @@ int ts_normalize(tokstream* ts)
     {
         /* trim token chars from end of buffer */
         char* back = ts->buf + ts->buf_len - 1;
-        while(back != ts->state->cur && ts->buf_len > 0 && !ts_cissep(ts, *back) && !ts_cisdelim(ts, *back))
+        while(ts->buf_len > 0)
         {
+            /* trim until separator or delimiter */
+            if(ts_cissep(ts, *back) || ts_cisdelim(ts, *back))
+                break;
+
+            /* trim buffer */
             --back;
             --ts->buf_len;
         }
