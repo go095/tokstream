@@ -247,17 +247,11 @@ void ts_state_copy(struct ts_state* dst, const struct ts_state* src);
 /* clean an old state */
 void ts_state_clean(struct ts_state* state);
 
-/* get the file pointer at correct position */
-FILE* ts_fp_get(tokstream* ts);
-
-/* update tokstream file data */
-void ts_fp_release(tokstream* ts, FILE* fp);
-
 /* read new buffer for tokstream */
 int ts_read(tokstream* ts);
 
 /* normalize buffer contents */
-void ts_normalize(tokstream* ts);
+int ts_normalize(tokstream* ts);
 
 
 /****
@@ -1104,6 +1098,9 @@ void ts_delim(tokstream* ts, const char* delim)
         /* set delim flag */
         ts_charmap_1(ts->state->delim, *delim);
     }
+
+    /* renormalize buffer */
+    ts_normalize(ts);
 }
 
 /**
@@ -1118,6 +1115,9 @@ void ts_delim_on(tokstream* ts, char c)
 
     /* set delimiter */
     ts_charmap_1(ts->state->delim, c);
+
+    /* renormalize buffer */
+    ts_normalize(ts);
 }
 
 /**
@@ -1133,6 +1133,9 @@ void ts_delim_off(tokstream* ts, char c)
     /* restore sep flag */
     if(ts_charmap_get(ts->state->sep2, c))
         ts_charmap_1(ts->state->sep, c);
+
+    /* renormalize buffer */
+    ts_normalize(ts);
 }
 
 /**
@@ -1233,46 +1236,23 @@ void ts_state_clean(struct ts_state* state)
     free(state->tok_buf);
 }
 
-FILE* ts_fp_get(tokstream* ts)
-{
-    FILE* fp;
-    int err;
-
-    /* get file pointer */
-    fp = ts->fp;
-
-    /* seek to file position */
-    err = fseek(fp, ts->state->pos, SEEK_SET);
-
-    /* update error and eof data */
-    ts->state->eof = feof(fp);
-    ts->state->error = ferror(fp);
-
-    /* if there was a seek error, rather not give fp */
-    if(err)
-        return NULL;
-
-    return fp;
-}
-
-void ts_fp_release(tokstream* ts, FILE* fp)
-{
-    /* set error indicators */
-    ts->state->eof = feof(fp);
-    ts->state->error = ferror(fp);
-}
-
 int ts_read(tokstream* ts)
 {
-    FILE* fp;
+    int seek_err;
 
     /* check if file is at eof already */
     if(ts->state->eof)
         return 1;
 
-    /* get file pointer for tokstream */
-    fp = ts_fp_get(ts);
-    if(!fp)
+    /* seek to file position */
+    seek_err = fseek(ts->fp, ts->state->pos, SEEK_SET);
+
+    /* update error and eof data */
+    ts->state->eof = feof(ts->fp);
+    ts->state->error = ferror(ts->fp);
+
+    /* if there was a seek error, rather not give fp */
+    if(seek_err)
         return 1;
 
     /* invalidate cursor and token */
@@ -1284,13 +1264,14 @@ int ts_read(tokstream* ts)
     ts->state->buf_rev = ts->buf_rev;
 
     /* get BUFSIZ chars from file to buffer */
-    ts->buf_len = fread(ts->buf, 1, ts->buf_size-1, fp);
+    ts->buf_len = fread(ts->buf, 1, ts->buf_size-1, ts->fp);
 
     /* terminate buffer string */
     ts->buf[ts->buf_len] = '\0';
 
-    /* release file pointer */
-    ts_fp_release(ts, fp);
+    /* set error indicators */
+    ts->state->eof = feof(ts->fp);
+    ts->state->error = ferror(ts->fp);
 
     /* break on error before updating tokstream */
     if(ts->state->error)
@@ -1306,18 +1287,44 @@ int ts_read(tokstream* ts)
     return 0;
 }
 
-void ts_normalize(tokstream* ts)
+int ts_normalize(tokstream* ts)
 {
-    /* trim token chars from end of buffer */
-    char* back = &ts->buf[ts->buf_len-1];
-    while(ts->buf_len > 0 && !ts_cissep(ts, *back))
-    {
-        --back;
-        --ts->buf_len;
+    int trim;
 
-        /* check if we met beginning of next token */
-        if(back == ts->state->cur)
-            break;
+    /* test buffer */
+    if(ts->buf_rev == 0)
+        return 0;
+
+    /* don't trim when at eof */
+    trim = 0;
+    if(!ts->state->eof)
+    {
+        /* trim token chars from end of buffer */
+        char* back = ts->buf + ts->buf_len - 1;
+        while(back != ts->state->cur && ts->buf_len > 0 && !ts_cissep(ts, *back) && !ts_cisdelim(ts, *back))
+        {
+            --back;
+            --ts->buf_len;
+        }
+
+        /* check whether buffer was trimmed */
+        if(*(back+1))
+        {
+            /* buffer was trimmed */
+            trim = 1;
+
+            /* terminate trimmed buffer */
+            *(back+1) = '\0';
+        }
     }
-    *(back+1) = '\0';
+
+    if(trim)
+    {
+        /* buffer changed, update buffer revision */
+        ++ts->buf_rev;
+        ++ts->state->buf_rev;
+    }
+
+    /* report changes to buffer */
+    return trim;
 }
