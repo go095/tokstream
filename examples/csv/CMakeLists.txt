@@ -8,7 +8,7 @@ project(TOKSTREAM_CSV)
 
 # the csv executable
 add_executable(csv
-  ${TOKSTREAM_EXAMPLES_SOURCE_DIR}/csv/csv.c
+  csv.c
 )
 
 # link with tokstream library
