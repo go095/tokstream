@@ -16,9 +16,3 @@ add_library(tokstream
     tokstream/tokstream.h
     tokstream/tokstream.c
 )
-
-####
-# Example projects
-####
-
-add_subdirectory(examples)
