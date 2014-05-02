@@ -4,6 +4,12 @@ tokstream
 The *tokstream* library allows you to read text files and split them up into individual tokens. It is, in a sense, a glorified version of strtok with file reading and a few tricks to make the process as efficient as possible.
 
 
+Documentation
+-------------
+
+There is a Doxygen-generated API documentation available [here](http://ntessore.github.io/tokstream).
+
+
 Features
 --------
 
